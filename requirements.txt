@@ -1,0 +1,5 @@
+azure-storage-blob
+streamlit
+python-dotenv
+psycopg2-binary
+
