@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
 from azure.data.tables import TableServiceClient
-from io import BytesIO
-from PIL import Image
-from st_aggrid import GridOptionsBuilder, JsCode, AgGrid
+from datetime import datetime
 
 # Azure Storage and Table credentials
 connection_string = "DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net"
@@ -39,46 +37,44 @@ for index, row in df.iterrows():
 
 df['RawImage'] = image_urls
 
-options_builder = GridOptionsBuilder.from_dataframe(df)
+# Function to extract date and time from RowKey
+def extract_datetime(row_key):
+    try:
+        date_str, time_str = row_key.split('_')[1].split('-')[:2]
+        date = datetime.strptime(date_str, '%Y%m%d').date()
+        time = datetime.strptime(time_str, '%H%M%S').time()
+        return f"{date} {time}"
+    except Exception as e:
+        st.error(f"Error extracting datetime from RowKey '{row_key}': {e}")
+        return None
 
-image_nation = JsCode("""
-        class ThumbnailRenderer {
-            init(params) {
+# Add DateTime column to the dataframe
+df['DateTime'] = df['RowKey'].apply(extract_datetime)
 
-            this.eGui = document.createElement('img');
-            this.eGui.setAttribute('src', params.value);
-            this.eGui.setAttribute('width', '200');
-            this.eGui.setAttribute('height', '200');
-            }
-                getGui() {
-                console.log(this.eGui);
+# Reorder columns to move DateTime to the first column
+first_column = df.pop('DateTime')
+df.insert(0, 'DateTime', first_column)
 
-                return this.eGui;
-            }
-        }
-""")
-options_builder.configure_column('RawImage', cellRenderer=image_nation)
-
-grid_options = options_builder.build()
+# Hide specific columns
+columns_to_hide = ['RowKey','PartitionKey', 'RawImageName', 'ProcessedImageName']
+df = df.drop(columns=columns_to_hide)
 
 # Streamlit app
 st.title("🌾FarmBeats Monitor")
 
-grid_return = AgGrid(df,
-                     grid_options,
-                     theme="streamlit",
-                     allow_unsafe_jscode=True,
-                     )
-
-
-# Display the table with images
-# st.dataframe(df)
+# Sidebar for filtering data
 with st.sidebar:
-    option = st.selectbox('Predict ststus',('Yes', 'No'))
+    st.write("Filter data")
+    option = st.selectbox('Predict status', ('Yes', 'No'))
 
-    st.page_link("app.py", label="Realtime Image", icon="📷")
-    st.page_link("app2.py", label="Realtime Image", icon="📷")
-# Show images with table data
-for index, row in df.iterrows():
-    st.write(row.to_dict())
-    st.image(row['RawImage'], caption=row['RowKey'])
+
+# Display the dataframe with image preview in the column
+st.data_editor(
+    df,
+    column_config={
+        "RawImage": st.column_config.ImageColumn(
+            "Preview Image", help="Streamlit app preview screenshots"
+        )
+    },
+    hide_index=True,
+)
