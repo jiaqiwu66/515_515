@@ -56,7 +56,7 @@ first_column = df.pop('DateTime')
 df.insert(0, 'DateTime', first_column)
 
 # Hide specific columns
-columns_to_hide = ['RowKey','PartitionKey', 'RawImageName', 'ProcessedImageName']
+columns_to_hide = ['RowKey', 'PartitionKey', 'RawImageName', 'ProcessedImageName']
 df = df.drop(columns=columns_to_hide)
 
 # Streamlit app
@@ -67,10 +67,22 @@ with st.sidebar:
     st.write("Filter data")
     option = st.selectbox('Predict status', ('Yes', 'No'))
 
+# Pagination settings
+items_per_page = 10
+total_items = len(df)
+total_pages = (total_items // items_per_page) + (1 if total_items % items_per_page > 0 else 0)
 
-# Display the dataframe with image preview in the column
+# Get current page number from Streamlit session state
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 1
+
+# Calculate the start and end indices of the dataframe slice for the current page
+start_idx = (st.session_state.current_page - 1) * items_per_page
+end_idx = start_idx + items_per_page
+
+# Display the dataframe slice with image preview in the column
 st.data_editor(
-    df,
+    df.iloc[start_idx:end_idx],
     column_config={
         "RawImage": st.column_config.ImageColumn(
             "Preview Image", help="Streamlit app preview screenshots"
@@ -78,3 +90,15 @@ st.data_editor(
     },
     hide_index=True,
 )
+
+# Display pagination controls below the table
+st.write(f"Page {st.session_state.current_page} of {total_pages}")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col1:
+    if st.button("Previous"):
+        if st.session_state.current_page > 1:
+            st.session_state.current_page -= 1
+with col3:
+    if st.button("Next"):
+        if st.session_state.current_page < total_pages:
+            st.session_state.current_page += 1
