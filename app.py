@@ -74,7 +74,10 @@ grid_return = AgGrid(df,
 # Display the table with images
 # st.dataframe(df)
 with st.sidebar:
+    option = st.selectbox('Predict ststus',('Yes', 'No'))
+
     st.page_link("app.py", label="Realtime Image", icon="📷")
+    st.page_link("app2.py", label="Realtime Image", icon="📷")
 # Show images with table data
 for index, row in df.iterrows():
     st.write(row.to_dict())
