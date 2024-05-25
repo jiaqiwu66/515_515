@@ -6,8 +6,8 @@ from datetime import datetime
 
 # Azure Storage and Table credentials
 connection_string = "DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net"
-table_name = "mile2"
-container_name_raw = "mile2raw"
+table_name = "mile3"
+container_name_raw = "mile3raw"
 
 # Initialize Blob and Table service clients
 blob_service_client = BlobServiceClient.from_connection_string(connection_string)
@@ -37,23 +37,23 @@ for index, row in df.iterrows():
 
 df['RawImage'] = image_urls
 
-# Function to extract date and time from RowKey
-def extract_datetime(row_key):
-    try:
-        date_str, time_str = row_key.split('_')[1].split('-')[:2]
-        date = datetime.strptime(date_str, '%Y%m%d').date()
-        time = datetime.strptime(time_str, '%H%M%S').time()
-        return f"{date} {time}"
-    except Exception as e:
-        st.error(f"Error extracting datetime from RowKey '{row_key}': {e}")
-        return None
+# # Function to extract date and time from RowKey
+# def extract_datetime(row_key):
+#     try:
+#         date_str, time_str = row_key.split('_')[1].split('-')[:2]
+#         date = datetime.strptime(date_str, '%Y%m%d').date()
+#         time = datetime.strptime(time_str, '%H%M%S').time()
+#         return f"{date} {time}"
+#     except Exception as e:
+#         st.error(f"Error extracting datetime from RowKey '{row_key}': {e}")
+#         return None
 
-# Add DateTime column to the dataframe
-df['DateTime'] = df['RowKey'].apply(extract_datetime)
+# # Add DateTime column to the dataframe
+# df['DateTime'] = df['RowKey'].apply(extract_datetime)
 
-# Reorder columns to move DateTime to the first column
-first_column = df.pop('DateTime')
-df.insert(0, 'DateTime', first_column)
+# # Reorder columns to move DateTime to the first column
+# first_column = df.pop('DateTime')
+# df.insert(0, 'DateTime', first_column)
 
 # Hide specific columns
 columns_to_hide = ['RowKey', 'PartitionKey', 'RawImageName', 'ProcessedImageName']
