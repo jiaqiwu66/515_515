@@ -54,9 +54,16 @@ previous_record = df.iloc[-2] if len(df) > 1 else latest_record
 temp_change = latest_record['TemperatureC'] - previous_record['TemperatureC']
 humidity_change = latest_record['Humidity'] - previous_record['Humidity']
 
-
 # Streamlit app
 st.title("🌾FarmBeats Monitor")
+
+# Warning frame if status is "YES"
+if latest_record['Status'].upper() == "YES":
+    st.markdown(
+        '<div style="background-color: #FDD9D9; padding: 4px; border-radius: 8px; border-style: solid; border-color: lightcoral; text-align: center;">'
+        '❗️The crops may get rusted''</div>',
+        unsafe_allow_html=True
+    )
 
 # Sidebar for filtering data
 with st.sidebar:
@@ -68,7 +75,7 @@ with st.sidebar:
     date_range = st.date_input("Date range", [min_date, max_date], min_value=min_date, max_value=max_date)
     
     # Status filter
-    status_filter = st.selectbox('Status', ('All', 'Yes', 'No'))
+    status_filter = st.selectbox('Status', ('ALL', 'YES', 'NO'))
     
     # Percentage filter
     percentage_min, percentage_max = st.slider(
@@ -89,17 +96,19 @@ with st.sidebar:
         value=(int(df['Humidity'].min()), int(df['Humidity'].max())))
 
 # Apply filters to dataframe
-start_date, end_date = pd.to_datetime(date_range)
-filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+filtered_df = df.copy()
+if len(pd.to_datetime(date_range)) == 2:
+    start_date, end_date = pd.to_datetime(date_range)
+    filtered_df = filtered_df[(filtered_df['Date'] >= start_date) & (filtered_df['Date'] <= end_date)]
 
-
-if status_filter != 'All':
-    filtered_df = filtered_df[filtered_df['Status'] == status_filter]
+if status_filter != 'ALL':
+    filtered_df = filtered_df[filtered_df['Status'].str.upper() == status_filter]
 
 filtered_df = filtered_df[(filtered_df['Percentage'] >= percentage_min) & (filtered_df['Percentage'] <= percentage_max)]
 filtered_df = filtered_df[(filtered_df['TemperatureC'] >= temperature_min) & (filtered_df['TemperatureC'] <= temperature_max)]
 filtered_df = filtered_df[(filtered_df['Humidity'] >= humidity_min) & (filtered_df['Humidity'] <= humidity_max)]
 
+# Latest Data section
 st.subheader("Latest Data")
 col1, col2, col3 = st.columns([1, 1, 1])
 with col1:
@@ -108,7 +117,6 @@ with col2:
     st.write(f"**Date:** {latest_record['Date']}")
     st.write(f"**Status:** {latest_record['Status']}")
     st.write(f"**Percentage:** {latest_record['Percentage']}%")
-
 with col3:
     st.caption("Temperature")
     st.write(f"{latest_record['TemperatureC']}°C")
@@ -116,7 +124,7 @@ with col3:
         st.write(f'<p style="color:red;">↑ {temp_change:.2f}°C Compared to previous</p>', unsafe_allow_html=True)
     else:
         st.write(f'<p style="color:red;">↓ {abs(temp_change):.2f}°C Compared to previous</p>', unsafe_allow_html=True)
-
+    
     st.caption("Humidity")
     st.write(f"{latest_record['Humidity']}%")
     if humidity_change > 0:
@@ -124,7 +132,7 @@ with col3:
     else:
         st.write(f'<p style="color:red;">↓ {abs(humidity_change):.2f}% Compared to previous</p>', unsafe_allow_html=True)
 
-# Display the dataframe with image preview in the column
+# Data History section
 st.subheader("Data History")
 st.data_editor(
     filtered_df,
