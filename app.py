@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
 from azure.data.tables import TableServiceClient
-from datetime import datetime
 
 # Azure Storage and Table credentials
 connection_string = "DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net"
@@ -23,6 +22,9 @@ for entity in entities:
     data.append(entity)
 df = pd.DataFrame(data)
 
+# Convert Date column to datetime
+df['Date'] = pd.to_datetime(df['Date'])
+
 # Function to get image URL from Blob Storage
 def get_image_url(blob_service_client, container_name, image_name):
     blob_client = blob_service_client.get_blob_client(container=container_name, blob=image_name)
@@ -37,27 +39,21 @@ for index, row in df.iterrows():
 
 df['RawImage'] = image_urls
 
-# # Function to extract date and time from RowKey
-# def extract_datetime(row_key):
-#     try:
-#         date_str, time_str = row_key.split('_')[1].split('-')[:2]
-#         date = datetime.strptime(date_str, '%Y%m%d').date()
-#         time = datetime.strptime(time_str, '%H%M%S').time()
-#         return f"{date} {time}"
-#     except Exception as e:
-#         st.error(f"Error extracting datetime from RowKey '{row_key}': {e}")
-#         return None
+# Select and reorder columns
+columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'TemperatureC', 'Humidity', 'Pressure']
+df = df[columns_order]
 
-# # Add DateTime column to the dataframe
-# df['DateTime'] = df['RowKey'].apply(extract_datetime)
+# Rename 'RawImage' to 'Preview Image' for display purposes
+df = df.rename(columns={'RawImage': 'Preview Image'})
 
-# # Reorder columns to move DateTime to the first column
-# first_column = df.pop('DateTime')
-# df.insert(0, 'DateTime', first_column)
+# Overview section - Get the latest record
+latest_record = df.iloc[-1]
+previous_record = df.iloc[-2] if len(df) > 1 else latest_record
 
-# Hide specific columns
-columns_to_hide = ['RowKey', 'PartitionKey', 'RawImageName', 'ProcessedImageName']
-df = df.drop(columns=columns_to_hide)
+# Calculating changes for temperature and humidity
+temp_change = latest_record['TemperatureC'] - previous_record['TemperatureC']
+humidity_change = latest_record['Humidity'] - previous_record['Humidity']
+
 
 # Streamlit app
 st.title("🌾FarmBeats Monitor")
@@ -65,40 +61,77 @@ st.title("🌾FarmBeats Monitor")
 # Sidebar for filtering data
 with st.sidebar:
     st.write("Filter data")
-    option = st.selectbox('Predict status', ('Yes', 'No'))
+    
+    # Date range filter
+    min_date = df['Date'].min().date()
+    max_date = df['Date'].max().date()
+    date_range = st.date_input("Date range", [min_date, max_date], min_value=min_date, max_value=max_date)
+    
+    # Status filter
+    status_filter = st.selectbox('Status', ('All', 'Yes', 'No'))
+    
+    # Percentage filter
+    percentage_min, percentage_max = st.slider(
+        'Percentage', min_value=int(df['Percentage'].min()), 
+        max_value=int(df['Percentage'].max()), 
+        value=(int(df['Percentage'].min()), int(df['Percentage'].max())))
+    
+    # Temperature filter
+    temperature_min, temperature_max = st.slider(
+        'Temperature (°C)', min_value=int(df['TemperatureC'].min()), 
+        max_value=int(df['TemperatureC'].max()), 
+        value=(int(df['TemperatureC'].min()), int(df['TemperatureC'].max())))
+    
+    # Humidity filter
+    humidity_min, humidity_max = st.slider(
+        'Humidity', min_value=int(df['Humidity'].min()), 
+        max_value=int(df['Humidity'].max()), 
+        value=(int(df['Humidity'].min()), int(df['Humidity'].max())))
 
-# Pagination settings
-items_per_page = 10
-total_items = len(df)
-total_pages = (total_items // items_per_page) + (1 if total_items % items_per_page > 0 else 0)
+# Apply filters to dataframe
+start_date, end_date = pd.to_datetime(date_range)
+filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
-# Get current page number from Streamlit session state
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = 1
 
-# Calculate the start and end indices of the dataframe slice for the current page
-start_idx = (st.session_state.current_page - 1) * items_per_page
-end_idx = start_idx + items_per_page
+if status_filter != 'All':
+    filtered_df = filtered_df[filtered_df['Status'] == status_filter]
 
-# Display the dataframe slice with image preview in the column
+filtered_df = filtered_df[(filtered_df['Percentage'] >= percentage_min) & (filtered_df['Percentage'] <= percentage_max)]
+filtered_df = filtered_df[(filtered_df['TemperatureC'] >= temperature_min) & (filtered_df['TemperatureC'] <= temperature_max)]
+filtered_df = filtered_df[(filtered_df['Humidity'] >= humidity_min) & (filtered_df['Humidity'] <= humidity_max)]
+
+st.subheader("Latest Data")
+col1, col2, col3 = st.columns([1, 1, 1])
+with col1:
+    st.image(latest_record['Preview Image'], caption='Latest Image', use_column_width=True)
+with col2:
+    st.write(f"**Date:** {latest_record['Date']}")
+    st.write(f"**Status:** {latest_record['Status']}")
+    st.write(f"**Percentage:** {latest_record['Percentage']}%")
+
+with col3:
+    st.caption("Temperature")
+    st.write(f"{latest_record['TemperatureC']}°C")
+    if temp_change > 0:
+        st.write(f'<p style="color:red;">↑ {temp_change:.2f}°C Compared to previous</p>', unsafe_allow_html=True)
+    else:
+        st.write(f'<p style="color:red;">↓ {abs(temp_change):.2f}°C Compared to previous</p>', unsafe_allow_html=True)
+
+    st.caption("Humidity")
+    st.write(f"{latest_record['Humidity']}%")
+    if humidity_change > 0:
+        st.write(f'<p style="color:red;">↑ {humidity_change:.2f}% Compared to previous</p>', unsafe_allow_html=True)
+    else:
+        st.write(f'<p style="color:red;">↓ {abs(humidity_change):.2f}% Compared to previous</p>', unsafe_allow_html=True)
+
+# Display the dataframe with image preview in the column
+st.subheader("Data History")
 st.data_editor(
-    df.iloc[start_idx:end_idx],
+    filtered_df,
     column_config={
-        "RawImage": st.column_config.ImageColumn(
+        "Preview Image": st.column_config.ImageColumn(
             "Preview Image", help="Streamlit app preview screenshots"
         )
     },
     hide_index=True,
 )
-
-# Display pagination controls below the table
-st.write(f"Page {st.session_state.current_page} of {total_pages}")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col1:
-    if st.button("Previous"):
-        if st.session_state.current_page > 1:
-            st.session_state.current_page -= 1
-with col3:
-    if st.button("Next"):
-        if st.session_state.current_page < total_pages:
-            st.session_state.current_page += 1
