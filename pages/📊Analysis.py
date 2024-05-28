@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from azure.data.tables import TableServiceClient
+import plotly.express as px
 
 # Function to retrieve data from Azure Table Storage
 def fetch_data_from_azure_table(connection_string, table_name):
@@ -20,57 +21,38 @@ table_name = 'mile3'
 # Fetch the data
 data_df = fetch_data_from_azure_table(connection_string, table_name)
 
-# Convert 'Date' column to datetime if it exists
-if 'Date' in data_df.columns:
-    data_df['Date'] = pd.to_datetime(data_df['Date'])
-else:
-    st.error("The 'Date' column is missing in the retrieved data.")
-
-# Streamlit app
-st.title('🌾FarmBeats Data Visualization')
+# Convert the Date column to datetime
+data_df['Date'] = pd.to_datetime(data_df['Date'])
 
 # Sidebar for date range selection
-st.sidebar.title("Filter")
-start_date = st.sidebar.date_input("Start date", data_df['Date'].min().date())
-end_date = st.sidebar.date_input("End date", data_df['Date'].max().date())
+st.sidebar.header("Filter by Date Range")
+start_date = st.sidebar.date_input("Start Date", value=data_df['Date'].min())
+end_date = st.sidebar.date_input("End Date", value=data_df['Date'].max())
 
-# Convert start_date and end_date to datetime
-start_date = pd.to_datetime(start_date)
-end_date = pd.to_datetime(end_date)
+# Filter the data based on the selected date range
+filtered_df = data_df[(data_df['Date'] >= pd.to_datetime(start_date)) & (data_df['Date'] <= pd.to_datetime(end_date) + pd.DateOffset(days=1) - pd.Timedelta(seconds=1))]
 
-# Filter data based on the selected date range
-filtered_df = data_df[(data_df['Date'] >= start_date) & (data_df['Date'] <= end_date)]
+# Set up the Streamlit app layout
+st.title("🌾FarmBeats Data Visualization")
 
-# Display charts in a row
-col1, col2, col3 = st.columns(3)
+# Create individual charts for each parameter
+fig_temp = px.line(filtered_df, x='Date', y='TemperatureC', title='Temperature Over Time')
+fig_humidity = px.line(filtered_df, x='Date', y='Humidity', title='Humidity Over Time')
+fig_pressure = px.line(filtered_df, x='Date', y='Pressure', title='Pressure Over Time')
+fig_percentage = px.line(filtered_df, x='Date', y='Percentage', title='Percentage of Yellow Over Time')
 
-with col1:
-    # Line chart for Temperature
-    if 'TemperatureC' in filtered_df.columns:
-        st.subheader('Temperature')
-        st.line_chart(filtered_df.set_index('Date')['TemperatureC'])
-    else:
-        st.warning("Temperature data is missing.")
+# Create a combined chart for Temperature, Humidity, and Percentage
+fig_combined = px.line(filtered_df, x='Date', y=['TemperatureC', 'Humidity', 'Percentage'], 
+                       title='Temperature, Humidity, and Percentage Over Time',
+                       labels={'value': 'Measurement', 'variable': 'Parameter'})
 
-with col2:
-    # Line chart for Humidity
-    if 'Humidity' in filtered_df.columns:
-        st.subheader('Humidity')
-        st.line_chart(filtered_df.set_index('Date')['Humidity'])
-    else:
-        st.warning("Humidity data is missing.")
+# Display the charts in a single line
+st.plotly_chart(fig_temp)
 
-with col3:
-    # Line chart for Pressure
-    if 'Pressure' in filtered_df.columns:
-        st.subheader('Pressure')
-        st.line_chart(filtered_df.set_index('Date')['Pressure'])
-    else:
-        st.warning("Pressure data is missing.")
+st.plotly_chart(fig_humidity)
 
-# Line chart for Percentage (of yellow)
-if 'Percentage' in filtered_df.columns:
-    st.subheader('Percentage (of Rust) Over Time')
-    st.line_chart(filtered_df.set_index('Date')['Percentage'])
-else:
-    st.warning("Percentage (of yellow) data is missing.")
+st.plotly_chart(fig_pressure)
+
+# Display the Percentage chart and combined chart below
+st.plotly_chart(fig_percentage)
+st.plotly_chart(fig_combined)

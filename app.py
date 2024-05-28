@@ -7,10 +7,12 @@ from azure.data.tables import TableServiceClient
 connection_string = "DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net"
 table_name = "mile3"
 container_name_raw = "mile3raw"
+container_name_processed = "mile3processed"
 
 # Initialize Blob and Table service clients
 blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-blob_client = blob_service_client.get_container_client(container_name_raw)
+blob_client_raw = blob_service_client.get_container_client(container_name_raw)
+blob_client_processed = blob_service_client.get_container_client(container_name_processed)
 
 table_service_client = TableServiceClient.from_connection_string(connection_string)
 table_client = table_service_client.get_table_client(table_name)
@@ -30,21 +32,34 @@ def get_image_url(blob_service_client, container_name, image_name):
     blob_client = blob_service_client.get_blob_client(container=container_name, blob=image_name)
     return blob_client.url
 
-# Add image URLs to the dataframe
-image_urls = []
+# Add raw image URLs to the dataframe
+raw_image_urls = []
 for index, row in df.iterrows():
     image_name = row['RowKey']  # Assuming image names are in the format of RowKey.jpg
-    image_url = get_image_url(blob_service_client, container_name_raw, image_name)
-    image_urls.append(image_url)
+    raw_image_url = get_image_url(blob_service_client, container_name_raw, image_name)
+    raw_image_urls.append(raw_image_url)
 
-df['RawImage'] = image_urls
+df['RawImage'] = raw_image_urls
+
+# Add processed image URLs to the dataframe
+processed_image_urls = []
+for index, row in df.iterrows():
+    if row['Status'].upper() == "YES":
+        raw_image_name = row['RowKey']  # Assuming raw image names are in the format of RowKey.jpg
+        processed_image_name = raw_image_name.replace("-1.jpg", "-2.jpg")
+        processed_image_url = get_image_url(blob_service_client, container_name_processed, processed_image_name)
+        processed_image_urls.append(processed_image_url)
+    else:
+        processed_image_urls.append(None)
+
+df['ProcessedImage'] = processed_image_urls
 
 # Select and reorder columns
-columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'TemperatureC', 'Humidity', 'Pressure']
+columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'ProcessedImage', 'TemperatureC', 'Humidity', 'Pressure']
 df = df[columns_order]
 
-# Rename 'RawImage' to 'Preview Image' for display purposes
-df = df.rename(columns={'RawImage': 'Preview Image'})
+# Rename columns for display purposes
+df = df.rename(columns={'RawImage': 'Preview Image', 'ProcessedImage': 'Processed Image'})
 
 # Overview section - Get the latest record
 latest_record = df.iloc[-1]
@@ -99,7 +114,7 @@ with st.sidebar:
 filtered_df = df.copy()
 if len(pd.to_datetime(date_range)) == 2:
     start_date, end_date = pd.to_datetime(date_range)
-    filtered_df = filtered_df[(filtered_df['Date'] >= start_date) & (filtered_df['Date'] <= end_date)]
+    filtered_df = filtered_df[(filtered_df['Date'] >= start_date) & (filtered_df['Date'] <= end_date + pd.Timedelta(days=1))]
 
 if status_filter != 'ALL':
     filtered_df = filtered_df[filtered_df['Status'].str.upper() == status_filter]
@@ -139,6 +154,9 @@ st.data_editor(
     column_config={
         "Preview Image": st.column_config.ImageColumn(
             "Preview Image", help="Streamlit app preview screenshots"
+        ),
+        "Processed Image": st.column_config.ImageColumn(
+            "Processed Image", help="Processed images for status 'YES'"
         )
     },
     hide_index=True,

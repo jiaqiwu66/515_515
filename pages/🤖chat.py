@@ -20,8 +20,8 @@ model = genai.GenerativeModel('gemini-pro')
 
 # Azure Storage credentials
 connection_string = 'DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net'
-table_name = 'mile2'
-container_name_raw = 'mile2raw'
+table_name = 'mile3'
+container_name_raw = 'mile3raw'
 
 # Initialize Blob and Table service clients
 blob_service_client = BlobServiceClient.from_connection_string(connection_string)
@@ -51,20 +51,19 @@ def generate_content(prompt):
     return response.text
 
 # Streamlit App
-st.title("Plant Health Monitor")
+st.title("🌾Farmbeats ChatBot")
 
 # Fetch data from Azure
 data = fetch_data_from_azure()
 
 # Ensure the necessary columns exist
-required_columns = ['RowKey', 'Percentage', 'TemperatureC', 'TemperatureF', 'Pressure', 'Humidity']
+required_columns = ['RowKey', 'Percentage', 'TemperatureC', 'TemperatureF', 'Pressure', 'Humidity', 'Date']
 for column in required_columns:
     if column not in data.columns:
         st.error(f"The required column '{column}' is not present in the data.")
         st.stop()
 
-# Add a new 'Date' column by extracting dates from 'RowKey'
-data['Date'], data['Time'] = zip(*data['RowKey'].apply(extract_date_from_rowkey))
+
 
 # Explanation of Azure table data
 azure_table_explanation = """
@@ -91,7 +90,7 @@ def handle_general_question(question, data):
     return generate_content(prompt)
 
 # Streamlit Interface for Chat
-st.header("Chat with Google Generative AI")
+st.header("Chat with Generative AI")
 user_input = st.text_input("Ask me anything about the data:")
 if user_input:
     ai_response = handle_general_question(user_input, data)
