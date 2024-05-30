@@ -1,6 +1,7 @@
-azure-storage-blob
-streamlit azure-storage-blob azure-data-tables
 streamlit
+pandas
+azure-storage-blob
+azure-data-tables
 python-dotenv
-psycopg2-binary
-streamlit-aggrid
+google-generativeai
+plotly
