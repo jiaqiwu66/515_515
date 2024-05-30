@@ -75,8 +75,6 @@ The Azure table contains the following fields: Percentage, Status, TemperatureC,
 # Template for handling general questions
 question_prompt_template = f"""
 You are an AI assistant with access to plant health data. The data includes fields such as Percentage, Status, TemperatureC, TemperatureF, Pressure, Humidity, and RowKey (which contains the date and time information).
-And you can write code to analysis the relationship between temperautre and plant health.
-And give advices to the farmer.
 Here is the data:
 {azure_table_explanation}
 {data.to_string()}
