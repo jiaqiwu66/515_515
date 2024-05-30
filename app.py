@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from azure.storage.blob import BlobServiceClient
-from azure.data.tables import TableServiceClient
+from azure.data.tables import TableServiceClient, UpdateMode
 
 # Azure Storage and Table credentials
 connection_string = "DefaultEndpointsProtocol=https;AccountName=515team2;AccountKey=+wc53G0GKd551uGI/gn+ow5YcrqralBanMwl+MqJoxReUPwSHwBE6wu4Eoh3awBwxR4za3qlC0hQ+AStlJ2PmA==;EndpointSuffix=core.windows.net"
@@ -23,6 +23,11 @@ data = []
 for entity in entities:
     data.append(entity)
 df = pd.DataFrame(data)
+
+# Ensure PartitionKey and RowKey are part of the DataFrame
+if 'PartitionKey' not in df.columns or 'RowKey' not in df.columns:
+    st.error("The DataFrame must include 'PartitionKey' and 'RowKey' columns.")
+    st.stop()
 
 # Convert Date column to datetime
 df['Date'] = pd.to_datetime(df['Date'])
@@ -55,7 +60,7 @@ for index, row in df.iterrows():
 df['ProcessedImage'] = processed_image_urls
 
 # Select and reorder columns
-columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'ProcessedImage', 'TemperatureC', 'Humidity', 'Pressure']
+columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'ProcessedImage', 'TemperatureC', 'Humidity', 'Pressure', 'PartitionKey', 'RowKey']
 df = df[columns_order]
 
 # Rename columns for display purposes
@@ -75,7 +80,7 @@ st.title("🌾FarmBeats Monitor")
 # Warning frame if status is "YES"
 if latest_record['Status'].upper() == "YES":
     st.markdown(
-        '<div style="background-color: #FFF1F1; padding: 4px; border-radius: 12px; border-style: solid; border-color: #FF9090; text-align: center;">'
+        '<div style="background-color: #FFF1F1; padding: 8px; border-radius: 12px; border-style: solid; border-color: #FFF1F1; text-align: center; text-color: #FF9090">'
         '❗️The crops may get rusted''</div>',
         unsafe_allow_html=True
     )
@@ -147,10 +152,15 @@ with col3:
     else:
         st.write(f'<p style="color:red;">↓ {abs(humidity_change):.2f}% Compared to previous</p>', unsafe_allow_html=True)
 
-# Data History section
+# Function to update status in Azure Table
+def update_status(partition_key, row_key, new_status):
+    entity = table_client.get_entity(partition_key=partition_key, row_key=row_key)
+    entity['Status'] = new_status
+    table_client.update_entity(mode=UpdateMode.REPLACE, entity=entity)
 
+# Data History section with editable status
 st.subheader("Past Data")
-st.data_editor(
+edited_df = st.data_editor(
     filtered_df,
     column_config={
         "Preview Image": st.column_config.ImageColumn(
@@ -158,7 +168,19 @@ st.data_editor(
         ),
         "Processed Image": st.column_config.ImageColumn(
             "Processed Image", help="Processed images for status 'YES'"
+        ),
+        "Status": st.column_config.SelectboxColumn(
+            "Status", options=['YES', 'NO']
         )
     },
     hide_index=True,
 )
+
+# Detect changes in the "Status" column and update Azure Table
+if st.button("Save Changes"):
+    for index, row in edited_df.iterrows():
+        original_status = filtered_df.loc[index, 'Status']
+        new_status = row['Status']
+        if original_status != new_status:
+            update_status(row['PartitionKey'], row['RowKey'], new_status)
+    st.success("Changes saved successfully!")
