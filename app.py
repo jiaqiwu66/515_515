@@ -75,14 +75,14 @@ st.title("🌾FarmBeats Monitor")
 # Warning frame if status is "YES"
 if latest_record['Status'].upper() == "YES":
     st.markdown(
-        '<div style="background-color: #FDD9D9; padding: 4px; border-radius: 8px; border-style: solid; border-color: lightcoral; text-align: center;">'
+        '<div style="background-color: #FFF1F1; padding: 4px; border-radius: 12px; border-style: solid; border-color: #FF9090; text-align: center;">'
         '❗️The crops may get rusted''</div>',
         unsafe_allow_html=True
     )
 
 # Sidebar for filtering data
 with st.sidebar:
-    st.write("Filter data")
+    st.caption("Filter data")
     
     # Date range filter
     min_date = df['Date'].min().date()
@@ -148,7 +148,8 @@ with col3:
         st.write(f'<p style="color:red;">↓ {abs(humidity_change):.2f}% Compared to previous</p>', unsafe_allow_html=True)
 
 # Data History section
-st.subheader("Data History")
+
+st.subheader("Past Data")
 st.data_editor(
     filtered_df,
     column_config={

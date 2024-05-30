@@ -51,7 +51,7 @@ def generate_content(prompt):
     return response.text
 
 # Streamlit App
-st.title("🌾Farmbeats ChatBot")
+st.header("🤖Farmbeats ChatBot")
 
 # Fetch data from Azure
 data = fetch_data_from_azure()
@@ -90,7 +90,7 @@ def handle_general_question(question, data):
     return generate_content(prompt)
 
 # Streamlit Interface for Chat
-st.header("Chat with Generative AI")
+st.subheader("Chat with Generative AI")
 user_input = st.text_input("Ask me anything about the data:")
 if user_input:
     ai_response = handle_general_question(user_input, data)

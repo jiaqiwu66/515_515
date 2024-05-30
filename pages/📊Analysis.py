@@ -25,7 +25,7 @@ data_df = fetch_data_from_azure_table(connection_string, table_name)
 data_df['Date'] = pd.to_datetime(data_df['Date'])
 
 # Sidebar for date range selection
-st.sidebar.header("Filter by Date Range")
+st.sidebar.caption("Filter by Date Range")
 start_date = st.sidebar.date_input("Start Date", value=data_df['Date'].min())
 end_date = st.sidebar.date_input("End Date", value=data_df['Date'].max())
 
@@ -33,26 +33,54 @@ end_date = st.sidebar.date_input("End Date", value=data_df['Date'].max())
 filtered_df = data_df[(data_df['Date'] >= pd.to_datetime(start_date)) & (data_df['Date'] <= pd.to_datetime(end_date) + pd.DateOffset(days=1) - pd.Timedelta(seconds=1))]
 
 # Set up the Streamlit app layout
-st.title("🌾FarmBeats Data Visualization")
+st.header("📊 FarmBeats Data Visualization")
 
-# Create individual charts for each parameter
-fig_temp = px.line(filtered_df, x='Date', y='TemperatureC', title='Temperature Over Time')
-fig_humidity = px.line(filtered_df, x='Date', y='Humidity', title='Humidity Over Time')
-fig_pressure = px.line(filtered_df, x='Date', y='Pressure', title='Pressure Over Time')
-fig_percentage = px.line(filtered_df, x='Date', y='Percentage', title='Percentage of Yellow Over Time')
+# Create tabs
+tab1, tab2 = st.tabs(["See Trends", "See Relationship"])
 
-# Create a combined chart for Temperature, Humidity, and Percentage
-fig_combined = px.line(filtered_df, x='Date', y=['TemperatureC', 'Humidity', 'Percentage'], 
-                       title='Temperature, Humidity, and Percentage Over Time',
-                       labels={'value': 'Measurement', 'variable': 'Parameter'})
+with tab1:
+    # 1. Percentage-date变化趋势
+    fig_percentage = px.line(filtered_df, x='Date', y='Percentage', title='Percentage of Rust Over Time')
+    st.plotly_chart(fig_percentage)
 
-# Display the charts in a single line
-st.plotly_chart(fig_temp)
+    # 2. 三个因素（Temperature，Humidity，Pressure）综合的变化趋势
+    fig_combined = px.line(filtered_df, x='Date', y=['TemperatureC', 'Humidity', 'Pressure'], 
+                           title='Temperature, Humidity, and Pressure Over Time',
+                           labels={'value': 'Measurement', 'variable': 'Parameter'})
+    st.plotly_chart(fig_combined)
 
-st.plotly_chart(fig_humidity)
+    # 3. 三个因素个字的变化趋势（三个图展示在一行，in 3 columns)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        fig_temp = px.line(filtered_df, x='Date', y='TemperatureC', title='Temperature Over Time')
+        fig_temp.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig_temp, use_container_width=True)
+    with col2:
+        fig_humidity = px.line(filtered_df, x='Date', y='Humidity', title='Humidity Over Time')
+        fig_humidity.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig_humidity, use_container_width=True)
+    with col3:
+        fig_pressure = px.line(filtered_df, x='Date', y='Pressure', title='Pressure Over Time')
+        fig_pressure.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig_pressure, use_container_width=True)
 
-st.plotly_chart(fig_pressure)
+with tab2:
+    # 4. 两张scatter 图
+    # Define color mapping for the scatter chart
+    color_mapping = {'YES': '#FF9090', 'NO': '#A4FBAD'}
 
-# Display the Percentage chart and combined chart below
-st.plotly_chart(fig_percentage)
-st.plotly_chart(fig_combined)
+    # Create the scatter chart for Temperature
+    fig_scatter_temp = px.scatter(filtered_df, x='TemperatureC', y='Percentage', color='Status', 
+                                  color_discrete_map=color_mapping, title='Temperature vs Percentage',
+                                  labels={'TemperatureC': 'Temperature (°C)', 'Percentage': 'Percentage of Yellow'},
+                                  category_orders={'Status': ['YES', 'NO']})
+    fig_scatter_temp.update_layout(legend_title_text='Status')
+    st.plotly_chart(fig_scatter_temp)
+
+    # Create the scatter chart for Humidity
+    fig_scatter_humidity = px.scatter(filtered_df, x='Humidity', y='Percentage', color='Status', 
+                                      color_discrete_map=color_mapping, title='Humidity vs Percentage',
+                                      labels={'Humidity': 'Humidity (%)', 'Percentage': 'Percentage of Yellow'},
+                                      category_orders={'Status': ['YES', 'NO']})
+    fig_scatter_humidity.update_layout(legend_title_text='Status')
+    st.plotly_chart(fig_scatter_humidity)
