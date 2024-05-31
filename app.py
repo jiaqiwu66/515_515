@@ -60,7 +60,7 @@ for index, row in df.iterrows():
 df['ProcessedImage'] = processed_image_urls
 
 # Select and reorder columns
-columns_order = ['Date', 'Status', 'Percentage', 'RawImage', 'ProcessedImage', 'TemperatureC', 'Humidity', 'Pressure']
+columns_order = [ 'Date', 'Status', 'Percentage', 'RawImage', 'ProcessedImage', 'TemperatureC', 'Humidity', 'Pressure', 'PartitionKey', 'RowKey',]
 df = df[columns_order]
 
 # Rename columns for display purposes
