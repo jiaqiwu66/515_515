@@ -39,17 +39,17 @@ st.header("📊 FarmBeats Data Visualization")
 tab1, tab2 = st.tabs(["See Trends", "See Relationship"])
 
 with tab1:
-    # 1. Percentage-date变化趋势
+    # 1. Percentage-date trending chart
     fig_percentage = px.line(filtered_df, x='Date', y='Percentage', title='Percentage of Rust Over Time')
     st.plotly_chart(fig_percentage)
 
-    # 2. 三个因素（Temperature，Humidity，Pressure）综合的变化趋势
+    # 2. three factors trending in one chart
     fig_combined = px.line(filtered_df, x='Date', y=['TemperatureC', 'Humidity', 'Pressure'], 
                            title='Temperature, Humidity, and Pressure Over Time',
                            labels={'value': 'Measurement', 'variable': 'Parameter'})
     st.plotly_chart(fig_combined)
 
-    # 3. 三个因素个字的变化趋势（三个图展示在一行，in 3 columns)
+    # 3. three trending charts
     col1, col2, col3 = st.columns(3)
     with col1:
         fig_temp = px.line(filtered_df, x='Date', y='TemperatureC', title='Temperature Over Time')
@@ -65,7 +65,7 @@ with tab1:
         st.plotly_chart(fig_pressure, use_container_width=True)
 
 with tab2:
-    # 4. 两张scatter 图
+    # 4. two scatter charts
     # Define color mapping for the scatter chart
     color_mapping = {'YES': '#FF9090', 'NO': '#A4FBAD'}
 
