@@ -1,5 +1,9 @@
 # TECHIN510_RustKiller
-🌾 A web app to detect rust disease in wheat, including data analysis, data visualization, and an AI chatbot.
+🌾 A web app to detect rust disease in wheat, including data analysis, data visualization, and an AI chatbot.  
+
+Web app:  https://farmbeats.streamlit.app/
+Youtube: https://youtu.be/Fxh6IdDXCK0
+
 
 
 ### Technologies used
